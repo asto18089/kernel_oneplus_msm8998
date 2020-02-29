@@ -34,8 +34,8 @@ $(warning LSE atomics not supported by binutils)
   endif
 endif
 
-KBUILD_CFLAGS	+= $(call cc-option,-march=armv8-a+crypto+crc,) $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
-KBUILD_AFLAGS += $(call cc-option,-march=armv8-a+crypto+crc,) $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
+KBUILD_CFLAGS	+= $(call cc-option,-march=armv8-a+crypto+crc,) $(call cc-option,-mcpu=cortex-a73+crypto+crc,)
+KBUILD_AFLAGS += $(call cc-option,-march=armv8-a+crypto+crc,) $(call cc-option,-mcpu=cortex-a73+crypto+crc,)
 
 ifeq ($(CONFIG_COMPAT_VDSO), y)
   CROSS_COMPILE_ARM32 ?= $(CONFIG_CROSS_COMPILE_ARM32:"%"=%)
@@ -70,27 +70,14 @@ ifeq ($(CONFIG_COMPAT_VDSO), y)
   endif
 endif
 
-ifeq ($(cc-name),clang)
-# This is a workaround for https://bugs.llvm.org/show_bug.cgi?id=30792.
-# TODO: revert when this is fixed in LLVM.
 KBUILD_CFLAGS	+= -mno-implicit-float
-else
-KBUILD_CFLAGS	+= -mgeneral-regs-only
-endif
 
 KBUILD_CFLAGS	+= $(lseinstr) $(vdso32)
 KBUILD_CFLAGS	+= -fno-pic
-ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
-KBUILD_CFLAGS	+= $(call cc-option, -mpc-relative-literal-loads)
-endif
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
 KBUILD_AFLAGS	+= $(lseinstr) $(vdso32)
 
-ifeq ($(cc-name),clang)
 KBUILD_CFLAGS	+= -DCONFIG_ARCH_SUPPORTS_INT128
-else
-KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
-endif
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
