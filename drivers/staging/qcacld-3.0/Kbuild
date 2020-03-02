@@ -1918,7 +1918,7 @@ CDEFINES += -DWLAN_HDD_ADAPTER_MAGIC=$(WLAN_HDD_ADAPTER_MAGIC)
 endif
 
 ccflags-y += $(call cc-option, -g0)
-ccflags-y += $(call cc-option, -Os)
+ccflags-y += $(call cc-option, -O3)
 
 # inject some build related information
 ifeq ($(CONFIG_BUILD_TAG), y)
