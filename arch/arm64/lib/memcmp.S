@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 ARM Ltd
+ * Copyright (c) 2017 ARM Ltd
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,83 +44,58 @@
 /* Internal variables.  */
 #define data1		x3
 #define data1w		w3
-#define data1h		x4
-#define data2		x5
-#define data2w		w5
-#define data2h		x6
-#define tmp1		x7
-#define tmp2		x8
+#define data2		x4
+#define data2w		w4
+#define tmp1		x5
 
-.align	6
+/* Small inputs of less than 8 bytes are handled separately.  This allows the
+   main code to be sped up using unaligned loads since there are now at least
+   8 bytes to be compared.  If the first 8 bytes are equal, align src1.
+   This ensures each iteration does at most one unaligned access even if both
+   src1 and src2 are unaligned, and mutually aligned inputs behave as if
+   aligned.  After the main loop, process the last 8 bytes using unaligned
+   accesses.  */
+
+.p2align 6
 ENTRY(memcmp)
 	subs	limit, limit, 8
 	b.lo	.Lless8
 
+	/* Limit >= 8, so check first 8 bytes using unaligned loads.  */
 	ldr	data1, [src1], 8
 	ldr	data2, [src2], 8
-	cmp	data1, data2
-	b.ne	.Lreturn
-
-	subs	limit, limit, 8
-	b.gt	.Lmore16
-
-	ldr	data1, [src1, limit]
-	ldr	data2, [src2, limit]
-	b	.Lreturn
-
-.Lmore16:
-	ldr	data1, [src1], 8
-	ldr	data2, [src2], 8
+	and	tmp1, src1, 7
+	add	limit, limit, tmp1
 	cmp	data1, data2
 	bne	.Lreturn
 
-	/* Jump directly to comparing the last 16 bytes for 32 byte (or less)
-	   strings.  */
-	subs	limit, limit, 16
-	b.ls	.Llast_bytes
-
-	/* We overlap loads between 0-32 bytes at either side of SRC1 when we
-	   try to align, so limit it only to strings larger than 128 bytes.  */
-	cmp	limit, 96
-	b.ls	.Lloop16
-
 	/* Align src1 and adjust src2 with bytes not yet done.  */
-	and	tmp1, src1, 15
-	add	limit, limit, tmp1
 	sub	src1, src1, tmp1
 	sub	src2, src2, tmp1
 
-	/* Loop performing 16 bytes per iteration using aligned src1.
-	   Limit is pre-decremented by 16 and must be larger than zero.
-	   Exit if <= 16 bytes left to do or if the data is not equal.  */
+	subs	limit, limit, 8
+	b.ls	.Llast_bytes
+
+	/* Loop performing 8 bytes per iteration using aligned src1.
+	   Limit is pre-decremented by 8 and must be larger than zero.
+	   Exit if <= 8 bytes left to do or if the data is not equal.  */
 	.p2align 4
-
-.Lloop16:
-	ldp	data1, data1h, [src1], 16
-	ldp	data2, data2h, [src2], 16
-	subs	limit, limit, 16
-	ccmp	data1, data2, 0, hi
-	ccmp	data1h, data2h, 0, eq
-	b.eq	.Lloop16
+.Lloop8:
+	ldr	data1, [src1], 8
+	ldr	data2, [src2], 8
+	subs	limit, limit, 8
+	ccmp	data1, data2, 0, hi  /* NZCV = 0b0000.  */
+	b.eq	.Lloop8
 
 	cmp	data1, data2
 	bne	.Lreturn
-	mov	data1, data1h
-	mov	data2, data2h
-	cmp	data1, data2
-	bne	.Lreturn
 
+	/* Compare last 1-8 bytes using unaligned access.  */
 .Llast_bytes:
-	add	src1, src1, limit
-	add	src2, src2, limit
-	ldp	data1, data1h, [src1]
-	ldp	data2, data2h, [src2]
-	cmp     data1, data2
-	bne	.Lreturn
-	mov	data1, data1h
-	mov	data2, data2h
-	cmp	data1, data2
+	ldr	data1, [src1, limit]
+	ldr	data2, [src2, limit]
 
+	/* Compare data bytes and set return value to 0, -1 or 1.  */
 .Lreturn:
 #ifndef __AARCH64EB__
 	rev	data1, data1
