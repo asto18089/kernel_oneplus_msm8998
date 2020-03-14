@@ -3599,8 +3599,6 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		return;
 	}
 
-	hdd_debugfs_exit(adapter);
-
 	/*
 	 * The adapter is marked as closed. When hdd_wlan_exit() call returns,
 	 * the driver is almost closed and cannot handle either control
@@ -4257,7 +4255,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		cds_check_and_restart_sap_with_non_dfs_acs();
 	}
 
-	if (QDF_STATUS_SUCCESS != hdd_debugfs_init(adapter))
+	if (0)
 		hdd_err("Interface %s wow debug_fs init failed",
 			netdev_name(adapter->dev));
 
